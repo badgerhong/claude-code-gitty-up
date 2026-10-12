@@ -5,6 +5,8 @@ orchestrator, specialist subagents own each system (Marketo, Salesforce, Databri
 Slack/Google Workspace, browser QA), skills encode your repeatable procedures, hooks enforce safety,
 and scheduled jobs run the recurring work while you're in meetings.
 
+https://claude.ai/artifact/NygYeu7JJNZ3ooxGUZpmmX
+
 ```
                   you (terminal: `claude`, `claude agents`)
                                    │
