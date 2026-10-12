@@ -1,0 +1,624 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Lead Card Call Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: control strip, then system map beside the step inspector, then the phase's call list beside the live lead card */
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --ink: #17202b;
+  --muted: #5a6675;
+  --line: #d3dae3;
+  --grid: #e6ebf1;
+  --signal: #d9480f;
+  --signal-soft: #fde8dc;
+  --z-client: #fff7e6;
+  --z-client-line: #d9a441;
+  --z-gov: #eaf1fb;
+  --z-gov-line: #3b6fb6;
+  --z-server: #f1f2f5;
+  --z-server-line: #8a94a3;
+  --z-data: #ecf5ee;
+  --z-data-line: #4f8a5b;
+  --spec: #3b6fb6;
+  --design: #7a4bb5;
+  --example: #5a6675;
+  --danger: #c92a2a;
+  --code-bg: #f6f8fa;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141a; --panel: #161d25; --ink: #e6ebf1; --muted: #9aa6b4; --line: #2b3541; --grid: #1f2832;
+    --signal: #ff8a4c; --signal-soft: #3a2418;
+    --z-client: #261f12; --z-client-line: #c8973a; --z-gov: #14213a; --z-gov-line: #6c9be0;
+    --z-server: #1c2229; --z-server-line: #7d8896; --z-data: #142419; --z-data-line: #6fae7c;
+    --spec: #7fa8e8; --design: #b18ae6; --example: #9aa6b4; --danger: #ff6b6b; --code-bg: #0f151c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141a; --panel: #161d25; --ink: #e6ebf1; --muted: #9aa6b4; --line: #2b3541; --grid: #1f2832;
+  --signal: #ff8a4c; --signal-soft: #3a2418;
+  --z-client: #261f12; --z-client-line: #c8973a; --z-gov: #14213a; --z-gov-line: #6c9be0;
+  --z-server: #1c2229; --z-server-line: #7d8896; --z-data: #142419; --z-data-line: #6fae7c;
+  --spec: #7fa8e8; --design: #b18ae6; --example: #9aa6b4; --danger: #ff6b6b; --code-bg: #0f151c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 40px; display: grid; gap: 16px; }
+header { display: grid; gap: 6px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 30px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 78ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tag { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px; border: 1px solid currentColor; }
+.tag.spec { color: var(--spec); } .tag.design { color: var(--design); } .tag.example { color: var(--example); }
+
+.controls { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.phases { display: flex; flex-wrap: wrap; gap: 6px; }
+.phase-btn { font: 500 13px var(--font-body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.phase-btn .n { font-family: var(--font-mono); color: var(--muted); margin-right: 4px; }
+.phase-btn[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.phase-btn[aria-pressed="true"] .n { color: var(--panel); opacity: 0.7; }
+.transport { display: flex; align-items: center; gap: 6px; }
+.icon-btn { font: 600 13px var(--font-body); background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; cursor: pointer; min-width: 38px; }
+.icon-btn.primary { background: var(--signal); border-color: var(--signal); color: #fff; }
+.counter { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 70px; text-align: center; }
+.toggles { display: flex; flex-wrap: wrap; gap: 14px; margin-left: auto; font-size: 13px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { font: 500 12px var(--font-mono); border: 0; background: transparent; color: var(--muted); padding: 5px 9px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+button:focus-visible, [tabindex]:focus-visible, .node:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+.row { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 12px 14px 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.map-scroll { overflow-x: auto; padding: 6px 10px 10px; }
+svg.map { display: block; width: 100%; min-width: 720px; height: auto; font-family: var(--font-body); }
+.zone-label { font: 600 11px var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.node { cursor: pointer; }
+.node rect.box { fill: var(--panel); stroke: var(--line); stroke-width: 1.25; transition: stroke 0.2s, fill 0.2s; }
+.node text.t { font: 600 13px var(--font-body); fill: var(--ink); }
+.node text.s { font: 400 11px var(--font-mono); fill: var(--muted); }
+.node.from rect.box { stroke: var(--ink); stroke-width: 2; }
+.node.to rect.box { stroke: var(--signal); stroke-width: 2.5; fill: var(--signal-soft); }
+.node.selected rect.box { stroke-dasharray: 4 3; }
+.edge { fill: none; stroke: var(--line); stroke-width: 1.25; }
+.edge.faint { stroke-dasharray: 3 4; }
+.edge.bypass { stroke: var(--danger); stroke-width: 2; stroke-dasharray: 6 4; }
+.active-path { fill: none; stroke: var(--signal); stroke-width: 2.5; }
+.active-path.resp { stroke-dasharray: 6 5; }
+.packet { fill: var(--signal); }
+.edge-label { font: 500 11px var(--font-mono); fill: var(--muted); }
+.bypass-label { font: 600 11px var(--font-mono); fill: var(--danger); }
+.method-label { font: 600 12px var(--font-mono); fill: var(--signal); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+
+.detail { padding: 12px 14px 14px; display: grid; gap: 10px; }
+.route { font-family: var(--font-mono); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.route b { color: var(--ink); font-weight: 500; }
+.method { font-family: var(--font-mono); font-weight: 500; font-size: 19px; line-height: 1.3; word-break: break-word; margin: 0; }
+pre.payload { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; font: 12.5px/1.5 var(--font-mono); white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto; }
+.note { margin: 0; }
+.warn { margin: 0; border: 1px solid var(--danger); color: var(--danger); border-radius: 7px; padding: 8px 10px; font-size: 13px; }
+.comp { border-top: 1px solid var(--line); padding: 12px 14px 14px; display: grid; gap: 6px; }
+.comp h3 { margin: 0; font: 600 16px var(--font-display); }
+.comp dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13.5px; }
+.comp dt { color: var(--muted); font-family: var(--font-mono); font-size: 12px; padding-top: 2px; }
+.comp dd { margin: 0; min-width: 0; }
+
+.steps { list-style: none; margin: 0; padding: 8px; display: grid; gap: 2px; max-height: 470px; overflow: auto; }
+.steps button { width: 100%; text-align: left; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; background: transparent; border: 0; border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--ink); font: 13.5px var(--font-body); }
+.steps button:hover { background: var(--grid); }
+.steps button[aria-current="step"] { background: var(--signal-soft); }
+.steps .num { font-family: var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.steps .lbl { min-width: 0; }
+.steps .lbl small { display: block; font-family: var(--font-mono); color: var(--muted); font-size: 11.5px; }
+.steps .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.spec { background: var(--spec); } .dot.design { background: var(--design); } .dot.example { background: var(--example); }
+
+.card-wrap { padding: 12px 14px 14px; display: grid; gap: 10px; }
+.chat-bubble { font-size: 13.5px; color: var(--muted); }
+.lead-card { border: 1px solid var(--z-client-line); border-radius: 10px; padding: 14px; background: var(--panel); display: grid; gap: 12px; position: relative; }
+.lead-card.pending { opacity: 0.55; border-style: dashed; }
+.lc-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lc-name { font: 600 18px var(--font-display); margin: 0; }
+.lc-sub { font-size: 13px; color: var(--muted); margin: 0; }
+.lc-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.metric { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: transparent; color: var(--ink); text-align: left; font: inherit; }
+.metric .k { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.metric .v { font: 600 20px var(--font-display); font-variant-numeric: tabular-nums; }
+button.metric { cursor: pointer; }
+button.metric:hover, .inspectable:hover { border-color: var(--signal); }
+.opp { font-size: 13.5px; display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--grid); padding-top: 6px; }
+.opp span:last-child { font-family: var(--font-mono); color: var(--muted); font-size: 12px; }
+.lc-btn { font: 600 13px var(--font-body); background: transparent; color: var(--ink); border: 1px solid var(--ink); border-radius: 7px; padding: 7px 10px; cursor: pointer; justify-self: start; }
+.kg-panel { border: 1px dashed var(--z-data-line); border-radius: 8px; padding: 10px; font-size: 13.5px; display: grid; gap: 6px; }
+.kg-panel .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kg-panel .chip { font-family: var(--font-mono); font-size: 11.5px; border: 1px solid var(--z-data-line); border-radius: 999px; padding: 2px 8px; color: var(--ink); }
+.inspector { font: 12px/1.55 var(--font-mono); background: var(--code-bg); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; min-height: 70px; white-space: pre-wrap; word-break: break-word; color: var(--ink); }
+.inspector .hint { color: var(--muted); }
+.torn { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 4px; max-width: 90ch; }
+footer a { color: var(--spec); }
+
+@media (max-width: 920px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .toggles { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Lead Card Call Path</h1>
+    <p class="lede">Step through how a sales rep's question and clicks travel through an MCP Apps lead card: the host, the sandboxed View, the AI gateway, the GTM MCP server, and Salesforce, Databricks and the knowledge graph behind it. Click any box on the map for its job, or click inside the example lead card to jump to the call that click makes.</p>
+    <div class="legend">
+      <span><span class="tag spec">Spec</span> MCP Apps 2026-01-26 behavior</span>
+      <span><span class="tag design">Design</span> our architecture choice</span>
+      <span><span class="tag example">Example</span> illustrative data</span>
+    </div>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Playback">
+    <div class="phases" id="phases"></div>
+    <div class="transport">
+      <button class="icon-btn" id="prev" aria-label="Previous step">←</button>
+      <button class="icon-btn primary" id="play" aria-label="Play">Play</button>
+      <button class="icon-btn" id="next" aria-label="Next step">→</button>
+      <span class="counter" id="counter" aria-live="polite"></span>
+    </div>
+    <div class="toggles">
+      <span class="toggle">Cache
+        <span class="seg" role="group" aria-label="Cache result">
+          <button id="cache-miss" aria-pressed="true">miss</button><button id="cache-hit" aria-pressed="false">hit</button>
+        </span>
+      </span>
+      <span class="toggle">View CSP
+        <span class="seg" role="group" aria-label="View network policy">
+          <button id="csp-locked" aria-pressed="true">locked</button><button id="csp-open" aria-pressed="false">open</button>
+        </span>
+      </span>
+    </div>
+  </div>
+
+  <div class="row">
+    <section class="panel" aria-label="System map">
+      <div class="panel-head"><span class="eyebrow">System map</span><span class="eyebrow" id="map-hint">orange = this step</span></div>
+      <div class="map-scroll"><svg class="map" id="map" viewBox="0 0 1000 600" role="img" aria-label="Architecture map of the lead card workflow"></svg></div>
+    </section>
+    <section class="panel" aria-label="Current step">
+      <div class="panel-head"><span class="eyebrow" id="phase-name"></span><span id="step-tag"></span></div>
+      <div class="detail">
+        <div class="route" id="route"></div>
+        <p class="method" id="method"></p>
+        <pre class="payload" id="payload"></pre>
+        <p class="note" id="note"></p>
+        <p class="warn" id="warn" hidden></p>
+      </div>
+      <div class="comp" id="comp"></div>
+    </section>
+  </div>
+
+  <div class="row">
+    <section class="panel" aria-label="Calls in this phase">
+      <div class="panel-head"><span class="eyebrow" id="list-title">Calls in this phase</span></div>
+      <ol class="steps" id="steps"></ol>
+    </section>
+    <section class="panel" aria-label="Example lead card">
+      <div class="panel-head"><span class="eyebrow">The View · ui://gtm/lead-card</span><span class="tag example">Example</span></div>
+      <div class="card-wrap" id="card"></div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Protocol names follow the MCP Apps extension, spec version 2026-01-26 (<a href="https://github.com/modelcontextprotocol/ext-apps" target="_blank" rel="noopener">modelcontextprotocol/ext-apps</a>). They were taken from a secondary write-up that tracks the spec; confirm against the official text before building.</span>
+    <span>The gateway as single checkpoint, the cache key, the data-* attributes, stable knowledge-graph node IDs and the event log are design choices, not spec requirements. Names, IDs and scores are examples.</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const PHASES = [
+    { n: 0, name: 'Connect', title: 'Connect and discover' },
+    { n: 1, name: 'Seed', title: 'Model-initiated call seeds the card' },
+    { n: 2, name: 'Render', title: 'Render the View' },
+    { n: 3, name: 'Click', title: 'A click becomes a governed tool call' },
+    { n: 4, name: 'Knowledge', title: 'DOM element to knowledge-graph node' },
+    { n: 5, name: 'Teardown', title: 'Teardown' }
+  ];
+
+  const NODES = {
+    rep:   { x: 40,  y: 60,  w: 150, h: 50, t: 'Sales rep', s: 'asks, clicks' },
+    host:  { x: 40,  y: 225, w: 175, h: 58, t: 'MCP host', s: 'chat client + model' },
+    view:  { x: 40,  y: 420, w: 175, h: 58, t: 'View (iframe)', s: 'ui://gtm/lead-card' },
+    gw:    { x: 330, y: 225, w: 190, h: 58, t: 'AI gateway', s: 'Databricks checkpoint' },
+    cache: { x: 302, y: 410, w: 122, h: 54, t: 'Cache', s: 'id + computed_at' },
+    log:   { x: 432, y: 410, w: 122, h: 54, t: 'Event log', s: 'Delta table' },
+    mcp:   { x: 590, y: 225, w: 172, h: 58, t: 'GTM MCP server', s: 'holds credentials' },
+    sf:    { x: 832, y: 70,  w: 150, h: 54, t: 'Salesforce', s: 'transactional truth' },
+    dbx:   { x: 832, y: 180, w: 150, h: 54, t: 'Databricks', s: 'computed scores' },
+    mkto:  { x: 832, y: 290, w: 150, h: 54, t: 'Marketo', s: 'REST quota shared' },
+    kg:    { x: 832, y: 400, w: 150, h: 54, t: 'Knowledge graph', s: 'wiki repo, node_id' },
+    local: { x: 590, y: 520, w: 172, h: 54, t: 'Local model', s: 'retrieval-grounded' }
+  };
+
+  const ZONES = [
+    { x: 20,  y: 190, w: 215, h: 330, label: 'Client · untrusted UI', f: '--z-client', l: '--z-client-line' },
+    { x: 30,  y: 400, w: 195, h: 108, label: 'sandbox="allow-scripts"', f: '--z-client', l: '--z-client-line', inner: true },
+    { x: 290, y: 190, w: 275, h: 300, label: 'Governance · single checkpoint', f: '--z-gov', l: '--z-gov-line' },
+    { x: 578, y: 190, w: 196, h: 125, label: 'Server · all credentials', f: '--z-server', l: '--z-server-line' },
+    { x: 815, y: 35,  w: 182, h: 440, label: 'Systems of record', f: '--z-data', l: '--z-data-line' }
+  ];
+
+  const BASE_EDGES = [
+    ['rep', 'host'], ['host', 'view'], ['host', 'gw'], ['gw', 'cache'], ['gw', 'log'], ['gw', 'mcp'],
+    ['mcp', 'sf'], ['mcp', 'dbx'], ['mcp', 'mkto'], ['mcp', 'kg'],
+    ['log', 'local', 'faint'], ['cache', 'local', 'faint'], ['kg', 'local', 'faint']
+  ];
+
+  const COMP = {
+    rep:   { role: 'Asks questions in chat and clicks inside the card.', holds: 'Nothing. Every action becomes a request the host decides on.', note: 'Rep clicks are the governed surface: each button maps to one named, allowed tool.' },
+    host:  { role: 'Runs the model, renders the View, and decides which View requests go out.', holds: 'Session state, tool allow-list, visibility rules, user consent.', note: 'Refuses tools/call from the View for tools whose visibility lacks "app", and any call before ui/notifications/initialized.' },
+    view:  { role: 'The lead card itself: HTML from the MCP server, rendered in a sandboxed iframe.', holds: 'Only the data it was handed. Each element carries data-person-key, data-account-id, data-kg-node, data-computed-at.', note: 'With connectDomains = [] it has no network path. It talks only to the host, over postMessage JSON-RPC.' },
+    gw:    { role: 'The single checkpoint for every tools/call and resources/read.', holds: 'Service credentials for the MCP server, auth and rate-limit policy, quota budgets for Salesforce and Marketo.', note: 'Because every call crosses it, its log is complete by construction.' },
+    cache: { role: 'Serves repeat requests without touching source systems.', holds: 'Payloads keyed on tool + entity ID, valid while computed_at is current.', note: 'Protects the shared Marketo and Salesforce API quotas.' },
+    log:   { role: 'Records every call: tool, arguments, caller, latency, cache hit.', holds: 'An append-only Delta table.', note: 'Feeds usage analytics and retrieval grounding for a local model. No weight updates.' },
+    mcp:   { role: 'Owns the tools and the ui://gtm/lead-card HTML; queries the systems behind it.', holds: 'All credentials for Salesforce, Databricks, Marketo and the wiki repo.', note: 'get_lead_card is visible to model and app. get_account_opps and kg_get_node are app-only.' },
+    sf:    { role: 'Transactional truth: contacts, accounts, opportunities, campaign members.', holds: 'Live records reps change.', note: 'Queried through the REST API with SOQL, never from the View.' },
+    dbx:   { role: 'Computed intelligence: ICP fit, next best action, campaign registry, touchpoints.', holds: 'Scheduled, recomputed tables with computed_at.', note: 'Queried with defined SQL through the SQL Statement Execution API, not Genie, so the card is deterministic.' },
+    mkto:  { role: 'Engagement data and NBA fields.', holds: 'Person and program data behind a shared daily REST quota.', note: 'Not called in this flow. The gateway cache and quota guard exist largely to protect it.' },
+    kg:    { role: 'The GTM knowledge wiki: definitions and how concepts relate.', holds: 'Markdown files with a stable node_id in frontmatter; [[links]] become edges.', note: 'Addressable by node_id, so a card element can deep-link to its definition.' },
+    local: { role: 'A model that answers from current state.', holds: 'Read access to the cache, event log and knowledge graph.', note: 'Grounding by retrieval keeps it real-time; retraining on the stream would not.' }
+  };
+
+  const ACCT = '001Ak00000XyZ';
+  const STEPS = [
+    // Phase 0
+    { id: 's1', ph: 0, f: 'host', t: 'gw', m: 'initialize', k: 'spec', p: '{\n  "capabilities": {\n    "extensions": {\n      "io.modelcontextprotocol/ui": {\n        "mimeTypes": ["text/html;profile=mcp-app"]\n      }\n    }\n  }\n}', n: 'The host declares MCP Apps support during the normal MCP handshake.' },
+    { id: 's2', ph: 0, f: 'gw', t: 'mcp', m: 'initialize (forwarded)', k: 'design', p: 'Authorization: Bearer <gateway service credential>', n: 'The gateway holds the credential for the MCP server. The host and the View never see it.' },
+    { id: 's3', ph: 0, f: 'host', t: 'gw', m: 'tools/list', k: 'spec', p: '{}', n: 'Discover the tools this server offers.' },
+    { id: 's4', ph: 0, f: 'gw', t: 'mcp', m: 'tools/list (forwarded)', k: 'design', p: '{}', n: 'Forwarded upstream under the gateway credential.' },
+    { id: 's5', ph: 0, f: 'mcp', t: 'gw', r: 1, m: 'tools/list result', k: 'spec', p: '{\n  "tools": [\n    { "name": "get_lead_card",\n      "_meta": { "ui": { "resourceUri": "ui://gtm/lead-card" } } },\n    { "name": "get_account_opps",\n      "_meta": { "ui": { "visibility": ["app"] } } },\n    { "name": "kg_get_node",\n      "_meta": { "ui": { "visibility": ["app"] } } }\n  ]\n}', n: 'get_lead_card links to its UI through _meta.ui.resourceUri. The two drill-down tools are app-only: the model never sees them, only the View can request them.' },
+    { id: 's6', ph: 0, f: 'gw', t: 'host', r: 1, m: 'Filtered tool list', k: 'design', p: 'removed: tools outside this rep\'s allow-list', n: 'The gateway drops tools this user may not call before the host sees them.' },
+    { id: 's7', ph: 0, f: 'host', t: 'gw', m: 'resources/read', k: 'spec', p: '{ "uri": "ui://gtm/lead-card" }', n: 'The host fetches the View HTML ahead of time so it can render the moment the tool returns.' },
+    { id: 's8', ph: 0, f: 'gw', t: 'mcp', m: 'resources/read (forwarded)', k: 'design', p: '{ "uri": "ui://gtm/lead-card" }', n: 'UI resources cross the gateway like tool calls.' },
+    { id: 's9', ph: 0, f: 'mcp', t: 'gw', r: 1, m: 'resources/read result', k: 'spec', p: 'CSP', n: 'CSP' },
+    { id: 's10', ph: 0, f: 'gw', t: 'host', r: 1, m: 'UI resource', k: 'spec', p: 'text/html;profile=mcp-app (may be cached by the host)', n: 'The host now has everything it needs to render the card.' },
+    // Phase 1
+    { id: 's11', ph: 1, f: 'rep', t: 'host', m: 'Prompt', k: 'example', p: '"Brief me on Jane Doe at Acme"', n: 'The rep asks in plain language. The model decides to call get_lead_card.' },
+    { id: 's12', ph: 1, f: 'host', t: 'gw', m: 'tools/call', k: 'spec', p: '{\n  "name": "get_lead_card",\n  "arguments": { "person_key": "pk_8f21c3" }\n}', n: 'Model-initiated call. It seeds the whole card in one round trip, so later clicks only fetch what the rep drills into.' },
+    { id: 's13', ph: 1, f: 'gw', t: 'gw', m: 'Policy check', k: 'design', p: 'authN   OAuth token valid\nauthZ   get_lead_card on allow-list\nquota   Salesforce + Marketo budget ok', n: 'Identity, permission and quota are checked in one place.' },
+    { id: 's14', ph: 1, f: 'gw', t: 'cache', m: 'Cache lookup', k: 'design', p: 'key = "get_lead_card:pk_8f21c3"', n: 'Keyed on the tool and the entity ID.' },
+    { id: 's15h', ph: 1, br: 'hit', f: 'cache', t: 'gw', r: 1, m: 'Cache hit', k: 'design', p: '{ "computed_at": "2026-10-08T06:00:00Z", "fresh": true }', n: 'The cached copy is as new as the latest computed_at, so nothing reaches the MCP server, Salesforce or Databricks.' },
+    { id: 's15', ph: 1, br: 'miss', f: 'cache', t: 'gw', r: 1, m: 'Cache miss', k: 'design', p: '{ "reason": "computed_at advanced since last store" }', n: 'Databricks recomputed scores after the cached copy was stored, so the gateway refetches.' },
+    { id: 's16', ph: 1, br: 'miss', f: 'gw', t: 'mcp', m: 'tools/call', k: 'design', p: '{ "name": "get_lead_card", "arguments": { "person_key": "pk_8f21c3" } }', n: 'Only a miss reaches the MCP server.' },
+    { id: 's17', ph: 1, br: 'miss', f: 'mcp', t: 'sf', m: 'SOQL via REST API', k: 'design', p: "SELECT Id, Name, Title, AccountId, Account.Name\nFROM Contact\nWHERE Person_Key__c = 'pk_8f21c3'\n\nSELECT Opportunity.Name, Opportunity.StageName\nFROM OpportunityContactRole\nWHERE Contact.Person_Key__c = 'pk_8f21c3'", n: 'Transactional truth: who the person is and which opportunities they are on. Runs in parallel with the Databricks query.' },
+    { id: 's18', ph: 1, br: 'miss', f: 'sf', t: 'mcp', r: 1, m: 'Live records', k: 'example', p: 'Contact      Jane Doe, VP Revenue Operations\nAccount      Acme Corp\nOpportunity  Acme expansion · Stage 3', n: 'Current as of this second.' },
+    { id: 's19', ph: 1, br: 'miss', f: 'mcp', t: 'dbx', m: 'SQL Statement Execution API', k: 'design', p: 'POST /api/2.0/sql/statements\n{\n  "warehouse_id": "<id>",\n  "statement": "SELECT fit_score, fit_tier, nba_action, computed_at\n    FROM gtm.icp_fit JOIN gtm.nba USING (person_key)\n    WHERE person_key = :pk",\n  "parameters": [{ "name": "pk", "value": "pk_8f21c3" }]\n}', n: 'Computed intelligence from defined queries, not Genie, so the card is deterministic and cheap.' },
+    { id: 's20', ph: 1, br: 'miss', f: 'dbx', t: 'mcp', r: 1, m: 'Scores', k: 'example', p: 'fit_score    82\nfit_tier     A\nnba_action   book_demo\ncomputed_at  2026-10-08T06:00:00Z', n: 'computed_at becomes the freshness key for the cache.' },
+    { id: 's21', ph: 1, br: 'miss', f: 'mcp', t: 'mcp', m: 'Merge', k: 'design', p: 'join on person_key + canonical_campaign_id', n: 'Two sources, one payload.' },
+    { id: 's22', ph: 1, br: 'miss', f: 'mcp', t: 'gw', r: 1, m: 'CallToolResult', k: 'spec', p: '{\n  "content": [{ "type": "text",\n    "text": "Jane Doe, VP RevOps at Acme. ICP fit 82 (A). Next: book a demo." }],\n  "structuredContent": {\n    "person_key": "pk_8f21c3",\n    "account_id": "' + ACCT + '",\n    "fit_score": 82,\n    "nba_action": "book_demo",\n    "computed_at": "2026-10-08T06:00:00Z"\n  }\n}', n: 'content is text the model reads. structuredContent is the data the View renders.' },
+    { id: 's23', ph: 1, br: 'miss', f: 'gw', t: 'cache', m: 'Cache store', k: 'design', p: 'valid until a newer computed_at appears', n: 'The next request for this person is served from here.' },
+    { id: 's24', ph: 1, f: 'gw', t: 'log', m: 'Append event', k: 'design', p: 'LOG', n: 'Every call crosses the gateway, so the log is complete by construction.' },
+    { id: 's25', ph: 1, f: 'gw', t: 'host', r: 1, m: 'CallToolResult', k: 'spec', p: 'content → model\nstructuredContent → View', n: 'The model gets the text summary; the View will get the structured data.' },
+    // Phase 2
+    { id: 's26', ph: 2, f: 'host', t: 'view', m: 'Create sandboxed iframe', k: 'spec', p: '<iframe sandbox="allow-scripts" srcdoc="…lead-card HTML…">', n: 'Only scripts are allowed: no top-level navigation, popups or form posts.' },
+    { id: 's27', ph: 2, f: 'view', t: 'host', m: 'ui/initialize', k: 'spec', p: '{\n  "appInfo": { "name": "gtm-lead-card", "version": "1.0.0" },\n  "appCapabilities": {},\n  "protocolVersion": "2026-01-26"\n}', n: 'JSON-RPC over postMessage. The same handshake idea as MCP initialize, scoped to the View.' },
+    { id: 's28', ph: 2, f: 'host', t: 'view', r: 1, m: 'ui/initialize result', k: 'spec', p: '{ "hostCapabilities": { … }, "hostInfo": { … },\n  "hostContext": { "theme": "light" } }', n: 'The host tells the View about itself and its context.' },
+    { id: 's29', ph: 2, f: 'view', t: 'host', m: 'ui/notifications/initialized', k: 'spec', p: '{}', n: 'Until this arrives, the host withholds data and rejects tools/call from the View.' },
+    { id: 's30', ph: 2, f: 'host', t: 'view', m: 'ui/notifications/tool-input', k: 'spec', p: '{ "arguments": { "person_key": "pk_8f21c3" } }', n: 'The arguments the model used.' },
+    { id: 's31', ph: 2, f: 'host', t: 'view', m: 'ui/notifications/tool-result', k: 'spec', p: '{ "structuredContent": { "person_key": "pk_8f21c3", "fit_score": 82, … } }', n: 'The data the card renders from. No extra round trip needed.' },
+    { id: 's32', ph: 2, f: 'view', t: 'view', m: 'Render DOM', k: 'design', p: '<button class="metric"\n  data-person-key="pk_8f21c3"\n  data-kg-node="concept:icp-fit"\n  data-computed-at="2026-10-08T06:00:00Z">82</button>', n: 'Each element carries the identity of the data behind it, so the next click reads its arguments from the DOM. Hover the example card to inspect.' },
+    { id: 's33', ph: 2, f: 'view', t: 'host', m: 'ui/notifications/size-changed', k: 'spec', p: '{ "height": 318 }', n: 'The View reports its height so the host can size the frame.' },
+    { id: 's34', ph: 2, f: 'host', t: 'rep', r: 1, m: 'Card visible', k: 'example', p: 'Lead card for Jane Doe appears in the chat', n: 'Click "Other open opportunities" or the ICP fit score in the example card to follow those calls.' },
+    // Phase 3
+    { id: 's35', ph: 3, f: 'rep', t: 'view', m: 'Click', k: 'example', p: 'button "Other open opportunities"', n: 'The interaction drives the call.' },
+    { id: 's36', ph: 3, f: 'view', t: 'view', m: 'Read arguments from the DOM', k: 'design', p: "el.closest('[data-account-id]').dataset.accountId\n→ \"" + ACCT + '"', n: 'The call is parameterized by real data from the clicked element, not by a guess.' },
+    { id: 's37', ph: 3, f: 'view', t: 'host', m: 'tools/call (request)', k: 'spec', p: '{\n  "jsonrpc": "2.0", "id": 7, "method": "tools/call",\n  "params": { "name": "get_account_opps",\n    "arguments": { "account_id": "' + ACCT + '" } }\n}', n: 'The View requests the call over postMessage. It cannot make it.' },
+    { id: 's38', ph: 3, f: 'host', t: 'host', m: 'Gate the request', k: 'spec', p: 'visibility includes "app"   ✓\nView initialized            ✓\nhost policy                 ✓', n: 'The host refuses tools/call for any tool whose visibility lacks "app".' },
+    { id: 's39', ph: 3, f: 'host', t: 'gw', m: 'tools/call', k: 'design', p: '{ "name": "get_account_opps", "arguments": { "account_id": "' + ACCT + '" } }', n: 'The approved request goes out through the gateway like any other call.' },
+    { id: 's40', ph: 3, f: 'gw', t: 'cache', m: 'Cache lookup', k: 'design', p: 'key = "get_account_opps:' + ACCT + '"', n: 'Same rule as the seed call.' },
+    { id: 's41', ph: 3, f: 'cache', t: 'gw', r: 1, m: 'Cache miss', k: 'design', p: '{ "reason": "not cached" }', n: 'First drill-down for this account.' },
+    { id: 's42', ph: 3, f: 'gw', t: 'mcp', m: 'tools/call', k: 'design', p: '{ "name": "get_account_opps" }', n: 'Forwarded under the gateway credential.' },
+    { id: 's43', ph: 3, f: 'mcp', t: 'dbx', m: 'Parameterized query', k: 'design', p: 'SELECT name, stage, amount\nFROM gtm.open_opps\nWHERE account_id = :acct', n: 'Defined query, bound parameter.' },
+    { id: 's44', ph: 3, f: 'dbx', t: 'mcp', r: 1, m: 'Rows', k: 'example', p: '3 open opportunities', n: '' },
+    { id: 's45', ph: 3, f: 'mcp', t: 'gw', r: 1, m: 'CallToolResult', k: 'spec', p: '{ "structuredContent": { "opportunities": [ … ] } }', n: '' },
+    { id: 's46', ph: 3, f: 'gw', t: 'log', m: 'Append event', k: 'design', p: '{ "tool": "get_account_opps", "origin": "app",\n  "caller": "rep_442", "cache_hit": false }', n: 'The log records that this call came from a click, not the model.' },
+    { id: 's47', ph: 3, f: 'gw', t: 'host', r: 1, m: 'Result', k: 'spec', p: 'CallToolResult', n: '' },
+    { id: 's48', ph: 3, f: 'host', t: 'view', r: 1, m: 'JSON-RPC response', k: 'spec', p: '{ "jsonrpc": "2.0", "id": 7, "result": { … } }', n: 'Matched to the View\'s request by id.' },
+    { id: 's49', ph: 3, f: 'view', t: 'view', m: 'Patch DOM in place', k: 'design', p: 'append 3 rows, each with data-opportunity-id', n: 'The card updates without re-rendering.' },
+    // Phase 4
+    { id: 's50', ph: 4, f: 'rep', t: 'view', m: 'Click', k: 'example', p: 'ICP fit score "82"', n: 'The rep wants to know what the score means.' },
+    { id: 's51', ph: 4, f: 'view', t: 'host', m: 'tools/call (request)', k: 'spec', p: '{\n  "name": "kg_get_node",\n  "arguments": { "node_id": "concept:icp-fit", "depth": 1 }\n}', n: 'node_id comes from the clicked element\'s data-kg-node attribute.' },
+    { id: 's52', ph: 4, f: 'host', t: 'gw', m: 'tools/call', k: 'design', p: '{ "name": "kg_get_node" }', n: 'Same gate, same gateway.' },
+    { id: 's53', ph: 4, f: 'gw', t: 'mcp', m: 'tools/call', k: 'design', p: '{ "name": "kg_get_node" }', n: '' },
+    { id: 's54', ph: 4, f: 'mcp', t: 'kg', m: 'Resolve node by stable ID', k: 'design', p: '---\nnode_id: concept:icp-fit\naliases: [ICP fit, fit score]\n---', n: 'The ID lives in frontmatter, so renaming or moving the file does not break links.' },
+    { id: 's55', ph: 4, f: 'kg', t: 'mcp', r: 1, m: 'Node + edges', k: 'design', p: 'edges: [[icp-definition]] [[fit-tier]]\n       [[qualification-outcome]]', n: 'Outbound [[links]] are the graph edges.' },
+    { id: 's56', ph: 4, f: 'mcp', t: 'gw', r: 1, m: 'CallToolResult', k: 'spec', p: '{ "structuredContent": { "node": { … }, "edges": [ … ] } }', n: '' },
+    { id: 's57', ph: 4, f: 'gw', t: 'log', m: 'Append event', k: 'design', p: '{ "tool": "kg_get_node", "node_id": "concept:icp-fit" }', n: 'The log also shows which concepts reps look up.' },
+    { id: 's58', ph: 4, f: 'gw', t: 'host', r: 1, m: 'Result', k: 'spec', p: 'CallToolResult', n: '' },
+    { id: 's59', ph: 4, f: 'host', t: 'view', r: 1, m: 'JSON-RPC response', k: 'spec', p: '{ "result": { "structuredContent": { "node": … } } }', n: 'The View renders the definition and neighboring nodes.' },
+    { id: 's60', ph: 4, f: 'view', t: 'host', m: 'ui/update-model-context', k: 'spec', p: '{\n  "node_id": "concept:icp-fit",\n  "summary": "ICP fit scores firmographic match 0–100; tiers A–D."\n}', n: 'The model now answers follow-ups grounded in this node.' },
+    // Phase 5
+    { id: 's61', ph: 5, f: 'host', t: 'view', m: 'ui/resource-teardown', k: 'spec', p: '{ "jsonrpc": "2.0", "id": 12, "method": "ui/resource-teardown" }', n: 'Sent as a request so the View can clean up before the iframe is destroyed.' },
+    { id: 's62', ph: 5, f: 'view', t: 'host', r: 1, m: 'Acknowledge', k: 'spec', p: '{ "jsonrpc": "2.0", "id": 12, "result": {} }', n: 'The host destroys the iframe.' }
+  ];
+  STEPS.forEach((s, i) => { s.o = i; });
+  const ORDER = Object.fromEntries(STEPS.map(s => [s.id, s.o]));
+
+  const state = { cache: 'miss', csp: 'locked', i: 0, sel: null, playing: false, timer: null };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function seq() { return STEPS.filter(s => !s.br || s.br === state.cache); }
+  function cur() { const q = seq(); return q[Math.min(state.i, q.length - 1)]; }
+
+  function payloadFor(s) {
+    if (s.id === 's9') {
+      const cd = state.csp === 'locked' ? '[]' : '["acme.my.salesforce.com"]';
+      return '{\n  "contents": [{\n    "uri": "ui://gtm/lead-card",\n    "mimeType": "text/html;profile=mcp-app",\n    "text": "<!doctype html>…",\n    "_meta": { "ui": { "csp": {\n      "connectDomains": ' + cd + ',\n      "resourceDomains": []\n    } } }\n  }]\n}';
+    }
+    if (s.id === 's24') {
+      const hit = state.cache === 'hit';
+      return '{ "tool": "get_lead_card", "origin": "model",\n  "caller": "rep_442", "cache_hit": ' + hit + ',\n  "latency_ms": ' + (hit ? 18 : 840) + ' }';
+    }
+    return s.p;
+  }
+  function noteFor(s) {
+    if (s.id === 's9') return state.csp === 'locked'
+      ? 'Empty connectDomains means the View cannot open any network connection of its own. Every data request goes through the host, and so through the gateway.'
+      : 'With a domain listed, the View may call Salesforce directly from the browser. That path skips the host gate, the gateway, the cache and the log.';
+    return s.n;
+  }
+
+  // ---------- map ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = $('map');
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const center = n => ({ x: n.x + n.w / 2, y: n.y + n.h / 2 });
+  function clip(n, toward) {
+    const c = center(n), dx = toward.x - c.x, dy = toward.y - c.y;
+    if (!dx && !dy) return c;
+    const sx = dx ? (n.w / 2) / Math.abs(dx) : Infinity, sy = dy ? (n.h / 2) / Math.abs(dy) : Infinity;
+    const s = Math.min(sx, sy);
+    return { x: c.x + dx * s, y: c.y + dy * s };
+  }
+  function seg(a, b, off) {
+    const A = NODES[a], B = NODES[b];
+    let p1 = clip(A, center(B)), p2 = clip(B, center(A));
+    if (off) {
+      const dx = p2.x - p1.x, dy = p2.y - p1.y, L = Math.hypot(dx, dy) || 1;
+      const ox = -dy / L * off, oy = dx / L * off;
+      p1 = { x: p1.x + ox, y: p1.y + oy }; p2 = { x: p2.x + ox, y: p2.y + oy };
+    }
+    return [p1, p2];
+  }
+
+  const gZones = el('g', {}, svg), gEdges = el('g', {}, svg), gActive = el('g', {}, svg), gNodes = el('g', {}, svg), gTop = el('g', {}, svg);
+  ZONES.forEach(z => {
+    el('rect', { x: z.x, y: z.y, width: z.w, height: z.h, rx: 10, style: `fill: var(${z.f}); stroke: var(${z.l}); stroke-dasharray: ${z.inner ? '0' : '5 4'}; stroke-width: 1.2` }, gZones);
+    const t = el('text', { x: z.x + 10, y: z.inner ? z.y + z.h - 8 : z.y + 18, class: 'zone-label', style: `fill: var(${z.l})` }, gZones);
+    t.textContent = z.label;
+  });
+  BASE_EDGES.forEach(([a, b, cls]) => {
+    const [p1, p2] = seg(a, b, 0);
+    el('line', { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, class: 'edge' + (cls ? ' ' + cls : '') }, gEdges);
+  });
+  const bypass = el('g', {}, gEdges);
+  (() => {
+    const v = NODES.view, s = NODES.sf;
+    const d = `M ${v.x + 30} ${v.y} C ${v.x + 30} 140, 640 40, ${s.x} ${s.y + 14}`;
+    el('path', { d, class: 'edge bypass' }, bypass);
+    const t = el('text', { x: 300, y: 72, class: 'bypass-label' }, bypass);
+    t.textContent = 'direct fetch · skips host gate, gateway, cache, log';
+  })();
+
+  const nodeEls = {};
+  Object.entries(NODES).forEach(([id, n]) => {
+    const g = el('g', { class: 'node', tabindex: 0, role: 'button', 'aria-label': n.t + ' details', 'data-id': id }, gNodes);
+    el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: 8, class: 'box' }, g);
+    const t1 = el('text', { x: n.x + 12, y: n.y + 22, class: 't' }, g); t1.textContent = n.t;
+    const t2 = el('text', { x: n.x + 12, y: n.y + 40, class: 's' }, g); t2.textContent = n.s;
+    g.addEventListener('click', () => selectNode(id));
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(id); } });
+    nodeEls[id] = g;
+  });
+
+  let raf = null;
+  function drawActive(s) {
+    gActive.textContent = ''; gTop.textContent = '';
+    if (raf) cancelAnimationFrame(raf);
+    let d;
+    if (s.f === s.t) {
+      const n = NODES[s.f], x0 = n.x + n.w - 46, x1 = n.x + n.w - 12;
+      d = `M ${x0} ${n.y} C ${x0 - 4} ${n.y - 40}, ${x1 + 22} ${n.y - 40}, ${x1} ${n.y}`;
+    } else {
+      const [p1, p2] = seg(s.f, s.t, s.r ? -6 : 6);
+      d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+    }
+    const path = el('path', { d, class: 'active-path' + (s.r ? ' resp' : '') }, gActive);
+    const len = path.getTotalLength();
+    const end = path.getPointAtLength(len), before = path.getPointAtLength(Math.max(0, len - 1));
+    const ang = Math.atan2(end.y - before.y, end.x - before.x);
+    const ah = 9;
+    el('path', { d: `M ${end.x} ${end.y} L ${end.x - ah * Math.cos(ang - 0.45)} ${end.y - ah * Math.sin(ang - 0.45)} L ${end.x - ah * Math.cos(ang + 0.45)} ${end.y - ah * Math.sin(ang + 0.45)} Z`, class: 'packet' }, gActive);
+    const mid = path.getPointAtLength(len / 2);
+    const lbl = el('text', { x: mid.x, y: mid.y - 8, class: 'method-label', 'text-anchor': 'middle' }, gTop);
+    lbl.textContent = s.m.length > 34 ? s.m.slice(0, 33) + '…' : s.m;
+    const dot = el('circle', { r: 6, class: 'packet', cx: reduceMotion ? end.x : path.getPointAtLength(0).x, cy: reduceMotion ? end.y : path.getPointAtLength(0).y }, gActive);
+    if (!reduceMotion) {
+      const t0 = performance.now(), dur = 650;
+      const tick = now => {
+        const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+        const p = path.getPointAtLength(len * e);
+        dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y);
+        if (k < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }
+  }
+
+  // ---------- panels ----------
+  function selectNode(id) { state.sel = id; renderComp(); markNodes(cur()); }
+  function markNodes(s) {
+    Object.entries(nodeEls).forEach(([id, g]) => {
+      g.classList.toggle('from', id === s.f && s.f !== s.t);
+      g.classList.toggle('to', id === s.t);
+      g.classList.toggle('selected', id === state.sel);
+    });
+  }
+  function renderComp() {
+    const s = cur(), id = state.sel || s.t, n = NODES[id], c = COMP[id];
+    $('comp').innerHTML = `<span class="eyebrow">${state.sel ? 'Selected component' : 'Receiving component'}</span>
+      <h3>${esc(n.t)}</h3>
+      <dl><dt>job</dt><dd>${esc(c.role)}</dd><dt>holds</dt><dd>${esc(c.holds)}</dd><dt>note</dt><dd>${esc(c.note)}</dd></dl>`;
+  }
+
+  function renderPhases() {
+    const s = cur();
+    $('phases').innerHTML = PHASES.map(p => `<button class="phase-btn" data-ph="${p.n}" aria-pressed="${p.n === s.ph}"><span class="n">${p.n}</span>${esc(p.name)}</button>`).join('');
+    $('phases').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { stop(); jumpPhase(+b.dataset.ph); }));
+  }
+  function renderSteps() {
+    const s = cur(), q = seq();
+    const items = q.map((x, i) => ({ x, i })).filter(o => o.x.ph === s.ph);
+    $('list-title').textContent = `Phase ${s.ph} · ${PHASES[s.ph].title}`;
+    $('steps').innerHTML = items.map(({ x, i }) => `<li><button data-i="${i}" ${x === s ? 'aria-current="step"' : ''}>
+      <span class="num">${i + 1}</span>
+      <span class="lbl">${esc(x.m)}<small>${esc(NODES[x.f].t)} → ${esc(NODES[x.t].t)}</small></span>
+      <span class="dot ${x.k}" title="${x.k}"></span></button></li>`).join('');
+    $('steps').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { stop(); go(+b.dataset.i); }));
+    const curBtn = $('steps').querySelector('[aria-current]');
+    if (curBtn) {
+      const box = $('steps'), top = curBtn.offsetTop - box.offsetTop;
+      if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 40) box.scrollTop = top - 60;
+    }
+  }
+  function renderDetail() {
+    const s = cur(), q = seq();
+    $('phase-name').textContent = `Phase ${s.ph} · ${PHASES[s.ph].name}`;
+    $('step-tag').innerHTML = `<span class="tag ${s.k}">${s.k === 'spec' ? 'Spec' : s.k === 'design' ? 'Design' : 'Example'}</span>`;
+    $('route').innerHTML = s.f === s.t ? `<b>${esc(NODES[s.f].t)}</b><span>internal</span>`
+      : `<b>${esc(NODES[s.f].t)}</b><span>${s.r ? '⇠ returns to' : '→'}</span><b>${esc(NODES[s.t].t)}</b>`;
+    $('method').textContent = s.m;
+    $('payload').textContent = payloadFor(s);
+    const n = noteFor(s);
+    $('note').textContent = n; $('note').hidden = !n;
+    const warn = state.csp === 'open';
+    $('warn').hidden = !warn;
+    if (warn) $('warn').textContent = 'View CSP is open: the card can fetch from acme.my.salesforce.com directly, bypassing the host gate, the gateway, the cache and the event log. Keep connectDomains empty.';
+    $('counter').textContent = `${state.i + 1} / ${q.length}`;
+    $('prev').disabled = state.i === 0; $('next').disabled = state.i >= q.length - 1;
+  }
+
+  // ---------- example lead card ----------
+  function renderCard() {
+    const s = cur(), o = s.o;
+    const rendered = o >= ORDER.s32, torn = o >= ORDER.s61;
+    const opps = o >= ORDER.s49 && !torn, kg = o >= ORDER.s59 && !torn;
+    const box = $('card');
+    if (torn) { box.innerHTML = `<p class="torn">ui/resource-teardown received. The iframe is destroyed; nothing of the card remains in the page.</p>`; return; }
+    if (!rendered) {
+      box.innerHTML = `<p class="chat-bubble">${o >= ORDER.s11 ? 'Rep: “Brief me on Jane Doe at Acme”' : 'No card yet. The host is connecting and discovering tools.'}</p>
+        <div class="lead-card pending" aria-hidden="true"><p class="lc-sub">Waiting for ${o >= ORDER.s26 ? 'ui/notifications/tool-result' : 'get_lead_card'}…</p></div>
+        <div class="inspector"><span class="hint">The card renders at step “Render DOM”.</span></div>`;
+      return;
+    }
+    box.innerHTML = `
+      <p class="chat-bubble">Rep: “Brief me on Jane Doe at Acme”</p>
+      <div class="lead-card" data-person-key="pk_8f21c3" data-account-id="${ACCT}">
+        <div class="lc-top">
+          <div><p class="lc-name inspectable" data-person-key="pk_8f21c3" data-sf-contact-id="003Ak00001AbC">Jane Doe</p>
+          <p class="lc-sub">VP Revenue Operations · Acme Corp</p></div>
+          <span class="tag example">computed 06:00 UTC</span>
+        </div>
+        <div class="lc-metrics">
+          <button class="metric" id="m-icp" data-person-key="pk_8f21c3" data-kg-node="concept:icp-fit" data-computed-at="2026-10-08T06:00:00Z" title="Open the ICP fit definition">
+            <div class="k">ICP fit · tier A</div><div class="v">82</div></button>
+          <div class="metric inspectable" data-person-key="pk_8f21c3" data-nba-action="book_demo" data-kg-node="concept:next-best-action" data-computed-at="2026-10-08T06:00:00Z">
+            <div class="k">Next best action</div><div class="v">Book demo</div></div>
+        </div>
+        <div>
+          <div class="opp inspectable" data-opportunity-id="006Ak00000Q1" data-canonical-campaign-id="cmp_2026_q3_webinar_ops"><span>Acme expansion</span><span>Stage 3</span></div>
+          ${opps ? `<div class="opp inspectable" data-opportunity-id="006Ak00000Q2"><span>Acme EMEA rollout</span><span>Stage 2</span></div>
+          <div class="opp inspectable" data-opportunity-id="006Ak00000Q3"><span>Acme analytics add-on</span><span>Stage 1</span></div>` : ''}
+        </div>
+        ${opps ? '' : `<button class="lc-btn" id="b-opps" data-account-id="${ACCT}">Other open opportunities</button>`}
+        ${kg ? `<div class="kg-panel" data-kg-node="concept:icp-fit"><strong>ICP fit</strong>
+          <span>Scores firmographic match to the ideal customer profile, 0–100, with tiers A–D. Defined in the GTM wiki.</span>
+          <div class="chips"><span class="chip">icp-definition</span><span class="chip">fit-tier</span><span class="chip">qualification-outcome</span></div></div>` : ''}
+      </div>
+      <div class="inspector" id="inspector"><span class="hint">Hover or focus an element in the card to see the data-* attributes it carries.</span></div>`;
+    const insp = $('inspector');
+    box.querySelectorAll('.lead-card [data-person-key], .lead-card [data-opportunity-id], .lead-card [data-kg-node], .lead-card [data-account-id]').forEach(n => {
+      if (n.classList.contains('lead-card')) return;
+      if (!n.hasAttribute('tabindex') && n.tagName !== 'BUTTON') n.setAttribute('tabindex', '0');
+      const show = () => { insp.textContent = '<' + n.tagName.toLowerCase() + '\n' + Array.from(n.attributes).filter(a => a.name.startsWith('data-')).map(a => `  ${a.name}="${a.value}"`).join('\n') + '>'; };
+      n.addEventListener('mouseenter', show); n.addEventListener('focus', show);
+    });
+    const bo = $('b-opps'); if (bo) bo.addEventListener('click', () => { stop(); jumpTo('s35'); });
+    const bi = $('m-icp'); if (bi) bi.addEventListener('click', () => { stop(); jumpTo('s50'); });
+  }
+
+  function render() {
+    const s = cur();
+    markNodes(s); drawActive(s); renderPhases(); renderSteps(); renderDetail(); renderComp(); renderCard();
+    bypass.style.display = state.csp === 'open' ? '' : 'none';
+    try { history.replaceState(null, '', '#p' + s.ph); } catch (e) {}
+  }
+
+  function go(i) { const q = seq(); state.i = Math.max(0, Math.min(q.length - 1, i)); state.sel = null; render(); }
+  function jumpPhase(ph) { const q = seq(); const i = q.findIndex(s => s.ph === ph); if (i >= 0) go(i); }
+  function jumpTo(id) { const q = seq(); const i = q.findIndex(s => s.id === id); if (i >= 0) go(i); }
+
+  function stop() { state.playing = false; clearInterval(state.timer); $('play').textContent = 'Play'; $('play').setAttribute('aria-label', 'Play'); }
+  function play() {
+    if (state.i >= seq().length - 1) go(0);
+    state.playing = true; $('play').textContent = 'Pause'; $('play').setAttribute('aria-label', 'Pause');
+    state.timer = setInterval(() => { if (state.i >= seq().length - 1) { stop(); return; } go(state.i + 1); }, 1700);
+  }
+
+  $('prev').addEventListener('click', () => { stop(); go(state.i - 1); });
+  $('next').addEventListener('click', () => { stop(); go(state.i + 1); });
+  $('play').addEventListener('click', () => state.playing ? stop() : play());
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input, textarea')) return;
+    if (e.key === 'ArrowRight') { stop(); go(state.i + 1); }
+    if (e.key === 'ArrowLeft') { stop(); go(state.i - 1); }
+  });
+
+  function setSeg(aOn, aId, bId) { $(aId).setAttribute('aria-pressed', aOn); $(bId).setAttribute('aria-pressed', !aOn); }
+  function setCache(v) {
+    const id = cur().id; state.cache = v; setSeg(v === 'miss', 'cache-miss', 'cache-hit');
+    const q = seq(); let i = q.findIndex(s => s.id === id);
+    if (i < 0) i = q.findIndex(s => s.id === (v === 'hit' ? 's15h' : 's15'));
+    state.i = Math.max(0, i); render();
+  }
+  $('cache-miss').addEventListener('click', () => setCache('miss'));
+  $('cache-hit').addEventListener('click', () => setCache('hit'));
+  $('csp-locked').addEventListener('click', () => { state.csp = 'locked'; setSeg(true, 'csp-locked', 'csp-open'); render(); });
+  $('csp-open').addEventListener('click', () => { state.csp = 'open'; setSeg(false, 'csp-locked', 'csp-open'); render(); });
+
+  const h = (location.hash || '').match(/^#p([0-5])$/);
+  if (h) { const q = seq(); state.i = Math.max(0, q.findIndex(s => s.ph === +h[1])); }
+  else state.i = seq().findIndex(s => s.id === 's37');
+  render();
+})();
+</script>
+
+</body></html>
